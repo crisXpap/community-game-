@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>COMMUNITY GAME</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand+SC&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=arrow_left,arrow_right" />
+    <style>
+        @font-face {
+            font-family: 'AppleGaramond';
+            src: url('./AppleGaramond-Light.ttf') format('truetype');
+            font-weight: 300;
+            font-style: normal;
+            font-display: swap;
+        }
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #05070c;
+            font-family: 'Patrick Hand SC', cursive;
+            user-select: none;
+        }
+        #info {
+            position: absolute;
+            top: 10px;
+            width: 100%;
+            text-align: center;
+            color: #ffffff;
+            pointer-events: none;
+            font-size: 14px;
+            font-family: 'Patrick Hand SC', cursive;
+            letter-spacing: 2px;
+            text-shadow: 0 0 10px rgba(255,255,255,0.6), 0 0 20px rgba(255,255,255,0.3), 0 1px 2px rgba(0,0,0,0.8);
+            z-index: 10;
+        }
+        #fps {
+            position: absolute;
+            top: 10px;
+            left: 15px;
+            color: #ffffff;
+            font-family: 'Patrick Hand SC', cursive;
+            font-size: 14px;
+            text-shadow: 0 0 10px rgba(255,255,255,0.6), 0 0 20px rgba(255,255,255,0.3);
+            z-index: 10;
+            pointer-events: none;
+        }
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 24px;
+            font-family: 'Patrick Hand SC', cursive;
+            pointer-events: none;
+            z-index: 10;
+            text-shadow: 0 0 8px rgba(255,255,255,0.8), 0 0 16px rgba(255,255,255,0.4);
+        }
+        #blocker {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(5, 5, 8, 0.85);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        #instructions {
+            width: auto;
+            color: #e0e0e0;
+            text-align: center;
+            background: transparent;
+            padding: 0;
+            border-radius: 0;
+            box-shadow: none;
+            border: none;
+            letter-spacing: 1px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .divider-text {
+            font-size: 13px;
+            letter-spacing: 2px;
+            color: #ffffff;
+            font-family: 'AppleGaramond', serif;
+            margin: 6px 0;
+            white-space: nowrap;
+        }
+        .title-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 10px;
+        }
+        h1 { 
+            font-size: 32px; 
+            margin: 0; 
+            color: #ffffff; 
+            font-weight: normal;
+            letter-spacing: 3px;
+            font-family: 'AppleGaramond', serif;
+            white-space: nowrap;
+        }
+        .start-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 10px;
+        }
+        .start-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            background: transparent;
+            color: #ffffff;
+            border: none;
+            padding: 4px 10px;
+            font-size: 30px;
+            font-family: 'AppleGaramond', serif;
+            letter-spacing: 3px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            white-space: nowrap;
+        }
+        .start-btn .material-symbols-outlined {
+            font-size: 28px;
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 48;
+        }
+        #instructions:hover .start-btn {
+            opacity: 1;
+            transform: scale(1.05);
+        }
+        .controls-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .controls-text {
+            font-size: 15px;
+            line-height: 1.6;
+            color: #ffffff;
+            margin: 0;
+            font-family: 'AppleGaramond', serif;
+            letter-spacing: 3px;
+            white-space: nowrap;
+        }
+        /* Roblox-style hold-to-interact prompt over the vacuum */
+        #interact-prompt {
+            position: fixed;
+            left: 0;
+            top: 0;
+            transform: translate(-50%, -105%);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            z-index: 20;
+            pointer-events: none;
+        }
+        .e-ring-wrap {
+            position: relative;
+            width: 64px;
+            height: 64px;
+        }
+        .e-ring-wrap svg {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            transform: rotate(-90deg);
+        }
+        .e-ring-bg {
+            fill: rgba(0, 0, 0, 0.55);
+            stroke: rgba(255, 255, 255, 0.35);
+            stroke-width: 5;
+        }
+        .e-ring-fg {
+            fill: none;
+            stroke: #2ecc71;
+            stroke-width: 5;
+            stroke-linecap: round;
+            transition: none;
+        }
+        .e-letter {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #ffffff;
+            font-family: 'Patrick Hand SC', cursive;
+            font-size: 26px;
+            font-weight: bold;
+            text-shadow: 0 0 8px rgba(255,255,255,0.8), 0 1px 2px rgba(0,0,0,0.8);
+        }
+        .e-label {
+            color: #ffffff;
+            font-family: 'Patrick Hand SC', cursive;
+            font-size: 12px;
+            letter-spacing: 2px;
+            text-shadow: 0 0 8px rgba(255,255,255,0.6), 0 1px 2px rgba(0,0,0,0.9);
+            white-space: nowrap;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">COMMUNITY GAME - <span style="font-family: 'Patrick Hand SC', cursive;">WASD</span> to move, <span style="font-family: 'Patrick Hand SC', cursive;">SHIFT</span> to run, Mouse to look, Scroll to zoom | Click to Shoot | Hold <span style="font-family: 'Patrick Hand SC', cursive;">E</span> to Possess / Exit / Pick Up / Fix</div>
+    <div id="fps">FPS: 60</div>
+    <div id="crosshair">+</div>
+    <div id="interact-prompt">
+        <div class="e-ring-wrap">
+            <svg viewBox="0 0 64 64">
+                <circle class="e-ring-bg" cx="32" cy="32" r="26"></circle>
+                <circle id="e-ring-fg" class="e-ring-fg" cx="32" cy="32" r="26"></circle>
+            </svg>
+            <span class="e-letter">E</span>
+        </div>
+        <div class="e-label" id="e-label">HOLD TO PICK UP</div>
+    </div>
+    <div id="blocker">
+        <div id="instructions">
+            <div class="title-wrap">
+                <div class="divider-text">· · ────── ꒰ঌ·✦·໒꒱ ────── · ·</div>
+                <h1>COMMUNITY GAME</h1>
+            </div>
+
+            <div class="start-wrapper">
+                <button class="start-btn" id="start-btn">
+                    <span class="material-symbols-outlined">arrow_right</span>
+                    START
+                    <span class="material-symbols-outlined">arrow_left</span>
+                </button>
+            </div>
+
+            <div class="controls-wrap">
+                <div class="controls-text">✦ WASD + SHIFT + SPACE + E ✦</div>
+                <div class="divider-text">─── ⋆⋅☆⋅⋆ ───</div>
+            </div>
+        </div>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+</body>
+</html>
