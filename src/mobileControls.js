@@ -161,30 +161,39 @@ export function initMobileControls(opts = {}) {
   document.body.appendChild(ui);
 
   // --- Virtual joystick (dynamic, bottom-left) ---
-  const manager = nipplejs.create({
-    zone: joyZone,
-    mode: 'dynamic',
-    position: { left: '110px', bottom: '110px' },
-    color: 'white',
-    size: 110,
-    fadeTime: 150,
-  });
-  manager.on('move', (_evt, data) => {
-    if (!data || !data.vector) return;
-    // nipplejs vector.y is up-positive; clamp + apply small dead zone.
-    const DEAD = 0.12;
-    let x = data.vector.x * Math.min(1, (data.force ?? 0));
-    let y = data.vector.y * Math.min(1, (data.force ?? 0));
-    if (Math.hypot(x, y) < DEAD) { x = 0; y = 0; }
-    mobileMove.x = THREE_CLAMP(x);
-    mobileMove.y = THREE_CLAMP(y);
-  });
+  // Created lazily on first show: the UI starts as display:none (zero
+  // layout), and nipplejs measures its zone at creation time.
+  let manager = null;
   const resetMove = () => { mobileMove.x = 0; mobileMove.y = 0; };
-  manager.on('end', resetMove);
-  manager.on('removed', resetMove);
-
-  function THREE_CLAMP(v) {
+  function clamp1(v) {
     return Math.max(-1, Math.min(1, v));
+  }
+  function ensureManager() {
+    if (manager) return;
+    manager = nipplejs.create({
+      zone: joyZone,
+      mode: 'dynamic',
+      position: { left: '110px', bottom: '110px' },
+      color: 'white',
+      size: 110,
+      fadeTime: 150,
+    });
+    manager.on('move', (evt, legacyData) => {
+      // nipplejs v1 delivers a single { type, target, data } wrapper;
+      // 0.x passed (evt, data). Accept both.
+      const data = (evt && evt.data) || legacyData || evt;
+      if (!data || !data.vector) return;
+      // vector.y is up-positive (push up = forward); |vector| already
+      // carries the deflection magnitude (0..1), so use it directly.
+      const DEAD = 0.12;
+      let x = data.vector.x ?? 0;
+      let y = data.vector.y ?? 0;
+      if (Math.hypot(x, y) < DEAD) { x = 0; y = 0; }
+      mobileMove.x = clamp1(x);
+      mobileMove.y = clamp1(y);
+    });
+    manager.on('end', resetMove);
+    manager.on('removed', resetMove);
   }
 
   // --- Action buttons ---
@@ -243,6 +252,8 @@ export function initMobileControls(opts = {}) {
   return {
     setVisible(v) {
       ui.classList.toggle('visible', !!v);
+      if (v) ensureManager();
+      if (!v) resetMove();
     },
   };
 }
