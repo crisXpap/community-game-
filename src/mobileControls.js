@@ -39,14 +39,15 @@ export function isTouchDevice() {
 
 const CSS = `
 #touch-ui { position: fixed; inset: 0; z-index: 40; pointer-events: none; display: none;
+  height: 100vh; height: 100dvh;
   font-family: 'Patrick Hand SC', cursive; }
 #touch-ui.visible { display: block; }
-#joystick-zone { position: absolute; left: 0; bottom: 0; width: 45vw; height: 55vh;
+#joystick-zone { position: absolute; left: 0; bottom: 0; width: 45vw; height: 55vh; height: 55dvh;
   pointer-events: auto; touch-action: none; }
-#look-zone { position: absolute; right: 0; bottom: 0; width: 55vw; height: 100vh;
+#look-zone { position: absolute; right: 0; bottom: 0; width: 55vw; height: 100vh; height: 100dvh;
   pointer-events: auto; touch-action: none; }
-#action-buttons { position: absolute; right: max(18px, env(safe-area-inset-right));
-  bottom: max(96px, env(safe-area-inset-bottom)); display: flex; flex-direction: column;
+#action-buttons { position: absolute; right: max(18px, env(safe-area-inset-right, 0px));
+  bottom: max(130px, env(safe-area-inset-bottom, 0px) + 120px); display: flex; flex-direction: column;
   align-items: center; gap: 12px; pointer-events: none; }
 .touch-btn { pointer-events: auto; touch-action: none; border-radius: 50%;
   border: 2px solid rgba(255,255,255,0.45); background: rgba(10,10,14,0.42);
@@ -249,10 +250,32 @@ export function initMobileControls(opts = {}) {
     }
   }, { passive: true });
 
+  // Keep the action buttons above collapsible browser chrome (e.g. Safari's
+  // bottom tab/URL bar): measure how much of the layout viewport the visual
+  // viewport doesn't cover and lift the buttons by that amount. Only ever
+  // pushes them up, so worst case they float slightly higher — never hidden.
+  function updateChromeOffset() {
+    let extra = 0;
+    const vv = window.visualViewport;
+    if (vv) {
+      extra = Math.max(0, window.innerHeight - vv.height - (vv.offsetTop || 0));
+    }
+    buttons.style.bottom = `calc(max(130px, env(safe-area-inset-bottom, 0px) + 120px) + ${extra}px)`;
+  }
+  updateChromeOffset();
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', updateChromeOffset);
+    window.visualViewport.addEventListener('scroll', updateChromeOffset);
+  }
+  window.addEventListener('orientationchange', updateChromeOffset);
+
   return {
     setVisible(v) {
       ui.classList.toggle('visible', !!v);
-      if (v) ensureManager();
+      if (v) {
+        ensureManager();
+        updateChromeOffset();
+      }
       if (!v) resetMove();
     },
   };

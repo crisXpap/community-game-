@@ -306,6 +306,8 @@ code {
   z-index: 40;
   pointer-events: none;
   display: none;
+  height: 100vh;
+  height: 100dvh;
   font-family: 'Patrick Hand SC', cursive;
 }
 #touch-ui.visible {
@@ -317,6 +319,7 @@ code {
   bottom: 0;
   width: 45vw;
   height: 55vh;
+  height: 55dvh;
   pointer-events: auto;
   touch-action: none;
 }
@@ -326,13 +329,17 @@ code {
   bottom: 0;
   width: 55vw;
   height: 100vh;
+  height: 100dvh;
   pointer-events: auto;
   touch-action: none;
 }
 #action-buttons {
   position: absolute;
-  right: max(18px, env(safe-area-inset-right));
-  bottom: max(96px, env(safe-area-inset-bottom));
+  right: max(18px, env(safe-area-inset-right, 0px));
+  /* High base clearance + live visualViewport offset (set inline by
+     mobileControls.js) keeps the buttons above mobile browser chrome
+     such as Safari's bottom tab/URL bar. */
+  bottom: max(130px, env(safe-area-inset-bottom, 0px) + 120px);
   display: flex;
   flex-direction: column;
   align-items: center;
