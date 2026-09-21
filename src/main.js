@@ -7,6 +7,11 @@ import { RobotVacuum } from './RobotVacuum.js';
 import { Volleyball } from './Ball.js';
 import { DirtLayer } from './DirtLayer.js';
 import { Bob } from './Bob.js';
+import {
+  initMobileControls,
+  mobileMove,
+  mobileState,
+} from './mobileControls.js';
 
 let camera, scene, renderer, controls;
 let roomMesh = null;
@@ -268,6 +273,17 @@ let moveRight = false;
 let isGrounded = false;
 let isSprinting = false;
 
+// --- Mobile touch controls (src/mobileControls.js) ---
+// touchUI is non-null only on touch-capable devices. touchPlaying mirrors
+// controls.isLocked: Pointer Lock doesn't exist on mobile, so starting the
+// game on touch sets controls.isLocked = true artificially and the touch UI
+// becomes visible. All existing isLocked-gated game logic then runs unchanged.
+let touchUI = null;
+const touchPlaying = { value: false };
+function isSprintingNow() {
+  return isSprinting || mobileState.sprint;
+}
+
 let verticalVelocity = 0;
 const gravity = 30.0;
 const jumpForce = 9.0;
@@ -473,11 +489,28 @@ function init() {
     if (event.button === 0) fireGun();
   });
 
+  // Touch controls: joystick + Run/Jump/Interact buttons + touch look.
+  // Only activates on touch-capable devices (module returns null otherwise).
+  touchUI = initMobileControls({
+    onJump: mobileJumpDown,
+    onJumpUp: mobileJumpUp,
+    onInteractDown: mobileInteractDown,
+    onInteractUp: mobileInteractUp,
+    onLook: mobileLook,
+    onShoot: () => fireGun(),
+  });
+
   const blocker = document.getElementById('blocker');
   const startBtn = document.getElementById('start-btn');
 
   startBtn.addEventListener('click', (event) => {
     event.stopPropagation();
+    // No Pointer Lock on touch screens: emulate the locked state so all
+    // isLocked-gated game logic runs, and show the touch UI instead.
+    if (touchUI) {
+      startTouchGame();
+      return;
+    }
     controls.lock();
     // User gesture: safe point to start the looping TV static audio.
     tryPlayTvAudio();
@@ -2973,7 +3006,13 @@ function updateMovementAudio() {
     pauseLoop(runAudio);
     return;
   }
-  const moving = moveForward || moveBackward || moveLeft || moveRight;
+  const moving =
+    moveForward ||
+    moveBackward ||
+    moveLeft ||
+    moveRight ||
+    mobileMove.x !== 0 ||
+    mobileMove.y !== 0;
   const grounded = isPossessed ? possessGrounded : isGrounded;
   if (!controls.isLocked || !moving || !grounded) {
     pauseLoop(footAudio);
@@ -2981,7 +3020,7 @@ function updateMovementAudio() {
     return;
   }
   // Sprinting speed → run.mp3; normal walking speed → footsteps.mp3.
-  if (isSprinting) {
+  if (isSprintingNow()) {
     pauseLoop(footAudio);
     playLoop(runAudio);
   } else {
@@ -3123,6 +3162,93 @@ function onKeyUp(event) {
     default:
       break;
   }
+}
+
+// --- Mobile touch input: mirrors of the Space / KeyE key handlers that gate
+// on the emulated touch lock instead of a real Pointer Lock. Wired up to the
+// on-screen joystick buttons in init() via initMobileControls(). ---
+function startTouchGame() {
+  const blocker = document.getElementById('blocker');
+  touchPlaying.value = true;
+  // Emulate pointer lock: all isLocked-gated gameplay (movement, hold-to-
+  // interact prompts, audio, possession, flight) runs unchanged on mobile.
+  controls.isLocked = true;
+  gameStarted = true;
+  if (blocker) blocker.style.display = 'none';
+  if (touchUI) touchUI.setVisible(true);
+  tryPlayTvAudio();
+}
+
+function mobileJumpDown() {
+  if (!touchPlaying.value) return;
+  tryPlayTvAudio();
+  if (isFlying) {
+    moveUp = true;
+    return;
+  }
+  if (isPossessed) {
+    if (possessGrounded === true) {
+      possessVelY = jumpForce;
+      possessGrounded = false;
+    }
+  } else if (isGrounded === true) {
+    verticalVelocity = jumpForce;
+    isGrounded = false;
+  }
+}
+
+function mobileJumpUp() {
+  moveUp = false;
+}
+
+function mobileInteractDown() {
+  if (!touchPlaying.value) return;
+  tryPlayTvAudio();
+  if (isPossessed) {
+    eHeld = true;
+    holdTarget = 'exit-possess';
+    return;
+  }
+  if (isFlying) {
+    eHeld = true;
+    holdTarget = 'exit-fly';
+    return;
+  }
+  if (canInteractVacuumNow()) {
+    eHeld = true;
+    holdTarget = 'vacuum';
+    return;
+  }
+  if (ball.isCarried) {
+    ball.throwBall(camera, playerVel);
+    eHeld = false;
+    holdProgress = 0;
+    holdTarget = null;
+    setRingProgress(0);
+    return;
+  }
+  holdTarget = getInteractTarget();
+  if (holdTarget) eHeld = true;
+}
+
+function mobileInteractUp() {
+  eHeld = false;
+  holdProgress = 0;
+  holdTarget = null;
+  setRingProgress(0);
+}
+
+const _touchLookEuler = new THREE.Euler(0, 0, 0, 'YXZ');
+function mobileLook(dx, dy) {
+  if (!touchPlaying.value || !camera) return;
+  // Same yaw/pitch convention as PointerLockControls (0.0022 base
+  // sensitivity), scaled for touch drags.
+  const sens = 0.0042;
+  _touchLookEuler.setFromQuaternion(camera.quaternion);
+  _touchLookEuler.y -= dx * sens;
+  _touchLookEuler.x -= dy * sens;
+  _touchLookEuler.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, _touchLookEuler.x));
+  camera.quaternion.setFromEuler(_touchLookEuler);
 }
 
 function onWindowResize() {
@@ -3291,13 +3417,15 @@ function animate() {
     velocity.x -= velocity.x * 10.0 * delta;
     velocity.z -= velocity.z * 10.0 * delta;
 
-    direction.z = Number(moveForward) - Number(moveBackward);
-    direction.x = Number(moveRight) - Number(moveLeft);
+    direction.z = Number(moveForward) - Number(moveBackward) + mobileMove.y;
+    direction.x = Number(moveRight) - Number(moveLeft) + mobileMove.x;
     direction.normalize();
 
-    const currentSpeed = walkSpeed * (isSprinting ? sprintSpeedMultiplier : 1.0);
-    if (moveForward || moveBackward) velocity.z -= direction.z * currentSpeed * delta;
-    if (moveLeft || moveRight) velocity.x -= direction.x * currentSpeed * delta;
+    const currentSpeed = walkSpeed * (isSprintingNow() ? sprintSpeedMultiplier : 1.0);
+    if (moveForward || moveBackward || mobileMove.y !== 0)
+      velocity.z -= direction.z * currentSpeed * delta;
+    if (moveLeft || moveRight || mobileMove.x !== 0)
+      velocity.x -= direction.x * currentSpeed * delta;
 
     controls.moveRight(-velocity.x * delta);
     controls.moveForward(-velocity.z * delta);
@@ -3350,14 +3478,14 @@ function animate() {
     if (_possessCamDir.lengthSq() < 1e-6) _possessCamDir.set(0, 0, -1);
     _possessCamDir.normalize();
     _possessSide.set(-_possessCamDir.z, 0, _possessCamDir.x);
-    const fAmt = Number(moveForward) - Number(moveBackward);
-    const sAmt = Number(moveRight) - Number(moveLeft);
+    const fAmt = Number(moveForward) - Number(moveBackward) + mobileMove.y;
+    const sAmt = Number(moveRight) - Number(moveLeft) + mobileMove.x;
     _possessMove.set(0, 0, 0);
     _possessMove.addScaledVector(_possessCamDir, fAmt);
     _possessMove.addScaledVector(_possessSide, sAmt);
     if (_possessMove.lengthSq() > 0) {
       _possessMove.normalize();
-      const speed = POSSESS_SPEED * (isSprinting ? sprintSpeedMultiplier : 1.0);
+      const speed = POSSESS_SPEED * (isSprintingNow() ? sprintSpeedMultiplier : 1.0);
       rp.x += _possessMove.x * speed * delta;
       rp.z += _possessMove.z * speed * delta;
       vacuum.mesh.rotation.y = Math.atan2(_possessMove.x, _possessMove.z);
@@ -3397,10 +3525,10 @@ function animate() {
     if (_flyFlat.lengthSq() < 1e-6) _flyFlat.set(0, 0, -1);
     _flyFlat.normalize();
     _flySide.set(-_flyFlat.z, 0, _flyFlat.x);
-    const fAmt = Number(moveForward) - Number(moveBackward);
-    const sAmt = Number(moveRight) - Number(moveLeft);
+    const fAmt = Number(moveForward) - Number(moveBackward) + mobileMove.y;
+    const sAmt = Number(moveRight) - Number(moveLeft) + mobileMove.x;
     const upAmt = Number(moveUp) - Number(moveDown);
-    const speed = FLY_SPEED * (isSprinting ? sprintSpeedMultiplier : 1.0);
+    const speed = FLY_SPEED * (isSprintingNow() ? sprintSpeedMultiplier : 1.0);
     _flyTarget.set(0, 0, 0);
     _flyTarget.addScaledVector(_flyFlat, fAmt * speed);
     _flyTarget.addScaledVector(_flySide, sAmt * speed);
@@ -3610,8 +3738,14 @@ function animate() {
   // Before the official game start (main menu), Bob stays fully idle.
   for (const b of bobs) {
     if (!b.mesh && b.state !== 'dying') continue;
-    const playerMoving = moveForward || moveBackward || moveLeft || moveRight;
-    b.update(delta, playerPos(), { hidden: isPossessed, active: gameStarted, playerSprinting: isSprinting, playerMoving }, (dmg) => damagePlayer(dmg));
+    const playerMoving =
+      moveForward ||
+      moveBackward ||
+      moveLeft ||
+      moveRight ||
+      mobileMove.x !== 0 ||
+      mobileMove.y !== 0;
+    b.update(delta, playerPos(), { hidden: isPossessed, active: gameStarted, playerSprinting: isSprintingNow(), playerMoving }, (dmg) => damagePlayer(dmg));
   }
 
   // Volleyball physics (free bounce / push / thrown flight / respawn).

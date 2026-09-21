@@ -294,3 +294,138 @@ code {
     border-right-color: var(--border);
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* Mobile touch controls (touch devices only — created by              */
+/* src/mobileControls.js; the same rules are injected at runtime so    */
+/* they apply even though index.html styles the game inline).          */
+/* ------------------------------------------------------------------ */
+#touch-ui {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  display: none;
+  font-family: 'Patrick Hand SC', cursive;
+}
+#touch-ui.visible {
+  display: block;
+}
+#joystick-zone {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 45vw;
+  height: 55vh;
+  pointer-events: auto;
+  touch-action: none;
+}
+#look-zone {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 55vw;
+  height: 100vh;
+  pointer-events: auto;
+  touch-action: none;
+}
+#action-buttons {
+  position: absolute;
+  right: max(18px, env(safe-area-inset-right));
+  bottom: max(96px, env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  pointer-events: none;
+}
+.touch-btn {
+  pointer-events: auto;
+  touch-action: none;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.45);
+  background: rgba(10, 10, 14, 0.42);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  letter-spacing: 1px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.6), 0 1px 2px rgba(0, 0, 0, 0.9);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35), inset 0 0 12px rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(2px);
+  transition: transform 0.08s ease, background 0.12s ease;
+}
+.touch-btn small {
+  font-size: 10px;
+  opacity: 0.85;
+  letter-spacing: 2px;
+}
+.touch-btn.active,
+.touch-btn:active {
+  background: rgba(46, 204, 113, 0.45);
+  transform: scale(0.94);
+}
+#btn-run {
+  width: 84px;
+  height: 84px;
+  font-size: 15px;
+}
+#btn-jump {
+  width: 70px;
+  height: 70px;
+  font-size: 14px;
+}
+#btn-interact {
+  width: 62px;
+  height: 62px;
+  font-size: 18px;
+  font-weight: bold;
+  border-color: rgba(46, 204, 113, 0.7);
+}
+/* Tablets / larger phones */
+@media (min-width: 768px) {
+  #btn-run {
+    width: 96px;
+    height: 96px;
+    font-size: 17px;
+  }
+  #btn-jump {
+    width: 80px;
+    height: 80px;
+    font-size: 15px;
+  }
+  #btn-interact {
+    width: 72px;
+    height: 72px;
+    font-size: 20px;
+  }
+  #action-buttons {
+    gap: 16px;
+  }
+}
+/* Small phones */
+@media (max-width: 380px) {
+  #btn-run {
+    width: 72px;
+    height: 72px;
+    font-size: 13px;
+  }
+  #btn-jump {
+    width: 60px;
+    height: 60px;
+    font-size: 12px;
+  }
+  #btn-interact {
+    width: 54px;
+    height: 54px;
+    font-size: 16px;
+  }
+  #action-buttons {
+    gap: 10px;
+  }
+}

@@ -12,6 +12,7 @@
     "vite": "^8.2.2"
   },
   "dependencies": {
+    "nipplejs": "^1.0.4",
     "postprocessing": "^6.39.4",
     "three": "^0.185.1"
   }
