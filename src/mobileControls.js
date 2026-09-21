@@ -4,8 +4,9 @@ import nipplejs from 'nipplejs';
  * Robust on-screen touch controls for mobile devices.
  *
  * - Dynamic virtual joystick (bottom-left) mimicking WASD.
- * - Three circular action buttons (bottom-right): Run (Shift), Jump (Space),
- *   Interact (E, hold-to-interact supported via down/up callbacks).
+ * - Two circular action buttons (bottom-right): Run (Shift) and Jump (Space).
+ * - Interact (E) has NO button: tapping / pressing the on-screen E-ring
+ *   hologram (#interact-prompt) triggers the hold-to-interact instead.
  * - Touch-look drag on the right half of the screen (yaw/pitch) + tap to shoot,
  *   since PointerLockControls mouse-look is unavailable on touch devices.
  * - Everything is only created/shown on touch-capable devices.
@@ -61,18 +62,22 @@ const CSS = `
 .touch-btn.active, .touch-btn:active { background: rgba(46,204,113,0.45); transform: scale(0.94); }
 #btn-run { width: 84px; height: 84px; font-size: 15px; }
 #btn-jump { width: 70px; height: 70px; font-size: 14px; }
-#btn-interact { width: 62px; height: 62px; font-size: 18px; font-weight: bold;
-  border-color: rgba(46,204,113,0.7); }
+/* Tappable E-ring hologram (touch only): the desktop prompt is
+   pointer-events:none at z-index 20, which would put it under the look
+   zone. On touch it becomes the Interact control — above everything with
+   a larger touch target. Only visible while an interact target is in range
+   (main.js toggles display), so it never blocks the view otherwise. */
+body.touch-playing #interact-prompt { pointer-events: auto; z-index: 50; cursor: pointer; }
+body.touch-playing #interact-prompt .e-ring-wrap { width: 84px; height: 84px; }
+body.touch-playing #interact-prompt .e-letter { font-size: 32px; }
 @media (min-width: 768px) {
   #btn-run { width: 96px; height: 96px; font-size: 17px; }
   #btn-jump { width: 80px; height: 80px; font-size: 15px; }
-  #btn-interact { width: 72px; height: 72px; font-size: 20px; }
   #action-buttons { gap: 16px; }
 }
 @media (max-width: 380px) {
   #btn-run { width: 72px; height: 72px; font-size: 13px; }
   #btn-jump { width: 60px; height: 60px; font-size: 12px; }
-  #btn-interact { width: 54px; height: 54px; font-size: 16px; }
   #action-buttons { gap: 10px; }
 }
 `;
@@ -134,14 +139,8 @@ export function initMobileControls(opts = {}) {
   const buttons = document.createElement('div');
   buttons.id = 'action-buttons';
 
-  // Order: Interact (top), Jump (middle), Run (bottom, largest).
-  const btnInteract = document.createElement('button');
-  btnInteract.id = 'btn-interact';
-  btnInteract.className = 'touch-btn';
-  btnInteract.type = 'button';
-  btnInteract.setAttribute('aria-label', 'Interact (E)');
-  btnInteract.innerHTML = 'E<small>HOLD</small>';
-
+  // Order: Jump (top), Run (bottom, largest). No Interact button — the
+  // on-screen E-ring hologram is the interact control (wired below).
   const btnJump = document.createElement('button');
   btnJump.id = 'btn-jump';
   btnJump.className = 'touch-btn';
@@ -156,7 +155,7 @@ export function initMobileControls(opts = {}) {
   btnRun.setAttribute('aria-label', 'Run (Shift)');
   btnRun.innerHTML = '&#187;<small>RUN</small>';
 
-  buttons.append(btnInteract, btnJump, btnRun);
+  buttons.append(btnJump, btnRun);
   // Look zone must sit below joystick + buttons in hit-testing.
   ui.append(lookZone, joyZone, buttons);
   document.body.appendChild(ui);
@@ -209,11 +208,18 @@ export function initMobileControls(opts = {}) {
     () => { opts.onJump && opts.onJump(); },
     () => { opts.onJumpUp && opts.onJumpUp(); }
   );
-  bindHoldButton(
-    btnInteract,
-    () => { opts.onInteractDown && opts.onInteractDown(); },
-    () => { opts.onInteractUp && opts.onInteractUp(); }
-  );
+  // Interact lives on the E-ring hologram, not a button: pressing it
+  // starts the E hold, releasing cancels (mirrors the desktop E key, where
+  // releasing early resets the 0.75s ring). preventDefault in the binder
+  // also suppresses the synthetic mousedown that would otherwise fire the gun.
+  const hologram = document.getElementById('interact-prompt');
+  if (hologram) {
+    bindHoldButton(
+      hologram,
+      () => { opts.onInteractDown && opts.onInteractDown(); },
+      () => { opts.onInteractUp && opts.onInteractUp(); }
+    );
+  }
 
   // --- Touch look: drag on right side to look, quick tap to shoot ---
   let lookId = null;
@@ -272,6 +278,9 @@ export function initMobileControls(opts = {}) {
   return {
     setVisible(v) {
       ui.classList.toggle('visible', !!v);
+      // Drives the touch-only hologram styling (tappable E-ring above the
+      // look zone). Scoped to touch sessions — desktop CSS is untouched.
+      document.body.classList.toggle('touch-playing', !!v);
       if (v) {
         ensureManager();
         updateChromeOffset();

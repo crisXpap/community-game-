@@ -387,12 +387,22 @@ code {
   height: 70px;
   font-size: 14px;
 }
-#btn-interact {
-  width: 62px;
-  height: 62px;
-  font-size: 18px;
-  font-weight: bold;
-  border-color: rgba(46, 204, 113, 0.7);
+/* Tappable E-ring hologram (touch only): the desktop prompt is
+   pointer-events:none at z-index 20, which would put it under the look
+   zone. On touch it becomes the Interact control — above everything with
+   a larger touch target. Only visible while an interact target is in range
+   (main.js toggles display), so it never blocks the view otherwise. */
+body.touch-playing #interact-prompt {
+  pointer-events: auto;
+  z-index: 50;
+  cursor: pointer;
+}
+body.touch-playing #interact-prompt .e-ring-wrap {
+  width: 84px;
+  height: 84px;
+}
+body.touch-playing #interact-prompt .e-letter {
+  font-size: 32px;
 }
 /* Tablets / larger phones */
 @media (min-width: 768px) {
@@ -405,11 +415,6 @@ code {
     width: 80px;
     height: 80px;
     font-size: 15px;
-  }
-  #btn-interact {
-    width: 72px;
-    height: 72px;
-    font-size: 20px;
   }
   #action-buttons {
     gap: 16px;
@@ -426,11 +431,6 @@ code {
     width: 60px;
     height: 60px;
     font-size: 12px;
-  }
-  #btn-interact {
-    width: 54px;
-    height: 54px;
-    font-size: 16px;
   }
   #action-buttons {
     gap: 10px;
